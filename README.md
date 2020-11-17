@@ -13,5 +13,7 @@ Using CURL, the service calls Mapzen API providing coordinates of the start and 
 ## Changes in original project
 Valhalla API was changed to OSRM API
 
+In current implementation we request the route from the hosted remote server (router.project-osrm.org) via sockets. No local map or built osrm_backend required
+
 
  
