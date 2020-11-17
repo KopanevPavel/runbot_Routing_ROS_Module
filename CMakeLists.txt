@@ -1,5 +1,11 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.1)
 project(routing_machine)
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FindPkgConfig)
+
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -187,7 +193,28 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
+## Declare a catkin package
+catkin_package()
+add_library(catkin INTERFACE IMPORTED)
+set_property(TARGET catkin PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${catkin_INCLUDE_DIRS})
+set_property(TARGET catkin PROPERTY INTERFACE_LINK_LIBRARIES ${catkin_LIBRARIES})
+
+## Declare libosrm
+# pkg_check_modules(OSRM REQUIRED libosrm>=5.13)
+# add_library(libosrm INTERFACE IMPORTED)
+# set_property(TARGET libosrm PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${OSRM_INCLUDE_DIRS})
+# set_property(TARGET libosrm PROPERTY INTERFACE_LINK_LIBRARIES ${OSRM_LIBRARIES})
+
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,--unresolved-symbols=ignore-in-shared-libs ${CMAKE_EXE_LINKER_FLAGS}")
 
 add_executable(routing_machine src/routing_machine.cpp)
 target_link_libraries(routing_machine ${catkin_LIBRARIES})
+# target_link_libraries(routing_machine catkin libosrm)
+set_property(TARGET routing_machine APPEND PROPERTY INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include)
 add_dependencies(routing_machine routing_machine_gencpp)
+
+add_executable(routing_machine_client src/routing_machine_client.cpp)
+target_link_libraries(routing_machine_client ${catkin_LIBRARIES})
+add_dependencies(routing_machine_client routing_machine_gencpp)
+
+

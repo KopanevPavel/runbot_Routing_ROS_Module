@@ -10,8 +10,8 @@ Using CURL, the service calls Mapzen API providing coordinates of the start and 
 
 `git clone` in your `catkin_ws/src` and you're ready to go! 
  
-## Need to display it on a map ?
- 
- Check [my other repository](https://github.com/sylvainar/ROS-OSM-map-integration)!
+## Changes in original project
+Valhalla API was changed to OSRM API
+
 
  
