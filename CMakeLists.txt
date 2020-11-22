@@ -14,7 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  message_generation
+  geometry_msgs
+  genmsg
 )
 
 ## System dependencies are found with CMake's conventions
@@ -53,7 +54,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  output_coords.msg
+  OutputCoords.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -73,6 +74,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################
@@ -205,7 +207,7 @@ set_property(TARGET catkin PROPERTY INTERFACE_LINK_LIBRARIES ${catkin_LIBRARIES}
 # set_property(TARGET libosrm PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${OSRM_INCLUDE_DIRS})
 # set_property(TARGET libosrm PROPERTY INTERFACE_LINK_LIBRARIES ${OSRM_LIBRARIES})
 
-set(CMAKE_EXE_LINKER_FLAGS "-Wl,--unresolved-symbols=ignore-in-shared-libs ${CMAKE_EXE_LINKER_FLAGS}")
+# set(CMAKE_EXE_LINKER_FLAGS "-Wl,--unresolved-symbols=ignore-in-shared-libs ${CMAKE_EXE_LINKER_FLAGS}")
 
 add_executable(routing_machine src/routing_machine.cpp)
 target_link_libraries(routing_machine ${catkin_LIBRARIES})

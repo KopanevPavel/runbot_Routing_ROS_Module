@@ -31,13 +31,14 @@ int main(int argc, char **argv)
   ros::ServiceClient client = n.serviceClient<routing_machine::ParseWpts>("routing_machine/get_wpts");
   routing_machine::ParseWpts srv;
   srv.request.get_wpts = atoll(argv[1]);
+  // std::cout << atoll(argv[1]) << std::endl;
   if (client.call(srv))
   {
     ROS_INFO("Service was called");
   }
   else
   {
-    ROS_ERROR("Failed to call service add_two_ints");
+    ROS_ERROR("Failed to call service get_wpts");
     return 1;
   }
 

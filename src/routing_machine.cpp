@@ -41,6 +41,7 @@ int main(int argc, char **argv)
 	ros::NodeHandle n;
 
 	ros::ServiceServer service = n.advertiseService("routing_machine/get_wpts", getRouting);
+	// ros::Publisher waypoints_publisher = n.advertise<routing_machine::OutputCoords>("routing_machine/waypoints_coords", 10);
 	ROS_INFO("Routing Machine ready !");
 	ros::spin();
 
@@ -153,6 +154,11 @@ bool getRouting(routing_machine::ParseWpts::Request  &req, routing_machine::Pars
 					res.longitude = calculatedWaypoints.longitude;
 					res.num_wpts = calculatedWaypoints.latitude.size();
 					res.success = true;
+
+					// routing_machine::OutputCoords waypointsMsg;
+					// waypointsMsg.latitude = calculatedWaypoints.latitude;
+					// waypointsMsg.longitude = calculatedWaypoints.longitude;
+					// waypoints_publisher.publish(waypointsMsg);
 					}
 			}
 
@@ -191,7 +197,7 @@ waypointsCoords getVecFromStr(std::string input)
 			break;
 		}
 			
-		ROS_INFO("Pairs : \n%s",pairCoordinates.c_str());
+		// ROS_INFO("Pairs : \n%s",pairCoordinates.c_str());
 
 		std::stringstream iss(pairCoordinates);
 		double coodinate;
