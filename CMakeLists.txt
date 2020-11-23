@@ -53,15 +53,28 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## Generate messages in the 'msg' folder
 add_message_files(
-  FILES
-  OutputCoords.msg
+    FILES
+    OutputCoords.msg
+    Annotation.msg
+    Approach.msg
+    Bearing.msg
+    Gaps.msg
+    Intersection.msg
+    Lane.msg
+    Maneuver.msg
+    Matching.msg
+    Overview.msg
+    Route.msg
+    RouteLeg.msg
+    RouteStep.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
-  FILES
-  ParseWpts.srv
-)
+    FILES
+    ParseWpts.srv
+    MatchService.srv
+    RouteService.srv)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -202,16 +215,16 @@ set_property(TARGET catkin PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${catkin_INCLU
 set_property(TARGET catkin PROPERTY INTERFACE_LINK_LIBRARIES ${catkin_LIBRARIES})
 
 ## Declare libosrm
-# pkg_check_modules(OSRM REQUIRED libosrm>=5.13)
-# add_library(libosrm INTERFACE IMPORTED)
-# set_property(TARGET libosrm PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${OSRM_INCLUDE_DIRS})
-# set_property(TARGET libosrm PROPERTY INTERFACE_LINK_LIBRARIES ${OSRM_LIBRARIES})
+pkg_check_modules(OSRM REQUIRED libosrm>=5.13)
+add_library(libosrm INTERFACE IMPORTED)
+set_property(TARGET libosrm PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${OSRM_INCLUDE_DIRS})
+set_property(TARGET libosrm PROPERTY INTERFACE_LINK_LIBRARIES ${OSRM_LIBRARIES})
 
-# set(CMAKE_EXE_LINKER_FLAGS "-Wl,--unresolved-symbols=ignore-in-shared-libs ${CMAKE_EXE_LINKER_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,--unresolved-symbols=ignore-in-shared-libs ${CMAKE_EXE_LINKER_FLAGS}")
 
 add_executable(routing_machine src/routing_machine.cpp)
-target_link_libraries(routing_machine ${catkin_LIBRARIES})
-# target_link_libraries(routing_machine catkin libosrm)
+# target_link_libraries(routing_machine ${catkin_LIBRARIES})
+target_link_libraries(routing_machine catkin libosrm)
 set_property(TARGET routing_machine APPEND PROPERTY INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include)
 add_dependencies(routing_machine routing_machine_gencpp)
 

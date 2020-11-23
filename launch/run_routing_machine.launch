@@ -1,5 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <node pkg="routing_machine" type="routing_machine" name="routing_machine" output="screen" cwd="node">
+        <param name="algorithm" value="MLD" type="string" />
+        <param name="server" value="local" type="string" />
     </node>
 </launch>

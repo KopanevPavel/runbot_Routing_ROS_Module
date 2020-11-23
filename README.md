@@ -11,9 +11,13 @@ Using CURL, the service calls Mapzen API providing coordinates of the start and 
 `git clone` in your `catkin_ws/src` and you're ready to go! 
  
 ## Changes in original project
+*Thnx https://github.com/oxidase/rosrm*
+
 Valhalla API was changed to OSRM API
 
-In current implementation we request the route from the hosted remote server (router.project-osrm.org) via sockets. No local map or built osrm_backend required
+In current implementation we request the route from the hosted remote server (router.project-osrm.org) via sockets. No local map or built osrm_backend required. 
+
+But you can use service_type ROS parameter to change the host. Local - local osrm/Service - hosted remote server (router.project-osrm.org).
 
 
  
