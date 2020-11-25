@@ -72,7 +72,7 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
     FILES
-    ParseWpts.srv
+    ParseWptsService.srv
     MatchService.srv
     RouteService.srv)
 

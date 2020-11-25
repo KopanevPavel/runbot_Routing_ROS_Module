@@ -1,5 +1,5 @@
 #include "ros/ros.h"
-#include "routing_machine/ParseWpts.h"
+#include "routing_machine/ParseWptsService.h"
 #include <routing_machine/RouteService.h>
 #include <routing_machine/MatchService.h>
 #include <iostream>
@@ -43,7 +43,7 @@ waypointsCoords getVecFromStr(std::string input);
 int decodePolyline(string encoded, std::vector<double> *latitude, std::vector<double> *longitude);
 string formateParameters(double slat, double slng, double elat, double elng);
 string formateParametersOSRM(double slat, double slng, double elat, double elng);
-bool getRouting(routing_machine::ParseWpts::Request  &req, routing_machine::ParseWpts::Response &res);
+bool getRouting(routing_machine::ParseWptsService::Request  &req, routing_machine::ParseWptsService::Response &res);
 
 namespace
 {
@@ -262,53 +262,102 @@ struct OSRMProxy
 
     bool route(routing_machine::RouteService::Request  &req, routing_machine::RouteService::Response &res)
     {
-        // Set route parameters
-        osrm::RouteParameters parameters;
-
-        // Set common parameters
-        convert_base_parameters(req, parameters);
-
-        // Set fixed parameters
-        parameters.geometries = osrm::engine::api::RouteParameters::GeometriesType::GeoJSON;
-
-        // Set request waypoints and bearings
-        for (const auto &waypoint : req.waypoints)
+        // Only if the client ask for waypoints
+        if(req.get_wpts == true)
         {
-            auto longitude = osrm::util::FloatLongitude{waypoint.position.x};
-            auto latitude = osrm::util::FloatLatitude{waypoint.position.y};
-            parameters.coordinates.emplace_back(longitude, latitude);
+            // Variables declaration
+            // std::vector<double> latitude;
+            // std::vector<double> longitude;
+
+            waypointsCoords calculatedWaypoints;
+
+            float endLatitude;
+            float endLongitude;
+            float startLatitude;
+            float startLongitude;
+            bool goTo;
+
+            string apiReturn;
+            string shape;
+            string status;
+            string apiReturnJSON;
+            string coordinatesJSON;
+
+            // First test : we check if the interface has been launched. If so, it should have set the parameters
+            // Second test : we check if the user has provided a route by checking goTo's value.
+            if (ros::param::get("/routing_machine/destination/goTo", goTo) && goTo == true)
+            {
+                // If the parameters goTo has been set, the 4 others should have been too. We get their values.
+                ros::param::get("/routing_machine/start/latitude", startLatitude);
+                ros::param::get("/routing_machine/start/longitude", startLongitude);
+                ros::param::get("/routing_machine/destination/latitude", endLatitude);
+                ros::param::get("/routing_machine/destination/longitude", endLongitude);
+
+                ROS_INFO("Start lat : %f lon : %f - End : lat : %f lon : %f", startLatitude, startLongitude, endLatitude, endLongitude);
+
+
+                // Set route parameters
+                osrm::RouteParameters parameters;
+
+                // Set common parameters
+                convert_base_parameters(req, parameters);
+
+                // Set fixed parameters
+                parameters.geometries = osrm::engine::api::RouteParameters::GeometriesType::GeoJSON;
+
+                // Set request waypoints and bearings
+                for (const auto &waypoint : req.waypoints)
+                {
+                    auto longitude = osrm::util::FloatLongitude{waypoint.position.x};
+                    auto latitude = osrm::util::FloatLatitude{waypoint.position.y};
+                    parameters.coordinates.emplace_back(longitude, latitude);
+                }
+
+                for (const auto &bearing : req.bearings)
+                {
+                    parameters.bearings.push_back(osrm::engine::Bearing{bearing.bearing, bearing.range});
+                }
+
+                if (!parameters.IsValid())
+                {
+                    res.code = "IncorrectParameters";
+                    return true;
+                }
+
+                // Find a route
+                osrm::json::Object response;
+                const auto status = osrm.Route(parameters, response);
+
+                // std::stringstream sstr;
+                // osrm::util::json::render(sstr, response);
+                // ROS_INFO("%s", sstr.str().c_str());
+
+                // Convert JSON response into a ROS message
+                res.code = response.values["code"].get<osrm::util::json::String>().value;
+                if (status != osrm::engine::Status::Ok)
+                    throw ros::Exception(response.values["message"].get<osrm::util::json::String>().value);
+
+                for (auto &route : response.values["routes"].get<osrm::json::Array>().values)
+                {
+                    res.routes.emplace_back(convert_route(route.get<osrm::json::Object>()));
+                }
+
+                res.success = true;
+                return true;
+            }
+            else
+            {
+                // The interface has not been launched or the user hasn't provided any route
+                ROS_INFO("No destination set.");
+                res.success = false;
+                return true;
+            }
         }
-
-        for (const auto &bearing : req.bearings)
+        else
         {
-            parameters.bearings.push_back(osrm::engine::Bearing{bearing.bearing, bearing.range});
-        }
-
-        if (!parameters.IsValid())
-        {
-            res.code = "IncorrectParameters";
+            res.success = false;
             return true;
         }
-
-        // Find a route
-        osrm::json::Object response;
-        const auto status = osrm.Route(parameters, response);
-
-        // std::stringstream sstr;
-        // osrm::util::json::render(sstr, response);
-        // ROS_INFO("%s", sstr.str().c_str());
-
-        // Convert JSON response into a ROS message
-        res.code = response.values["code"].get<osrm::util::json::String>().value;
-        if (status != osrm::engine::Status::Ok)
-            throw ros::Exception(response.values["message"].get<osrm::util::json::String>().value);
-
-        for (auto &route : response.values["routes"].get<osrm::json::Array>().values)
-        {
-            res.routes.emplace_back(convert_route(route.get<osrm::json::Object>()));
-        }
-
-        return true;
     }
 
     bool match(routing_machine::MatchService::Request  &req, routing_machine::MatchService::Response &res)
@@ -391,40 +440,69 @@ int main(int argc, char **argv)
 
     std::string server_type;
 
-    if (n.getParam("/routing_machine/server", server_type)) ;
+    if (n.getParam("/routing_machine/server_type", server_type)) ;
     else server_type = "server";
 
-	ros::ServiceServer service = n.advertiseService("routing_machine/get_wpts", getRouting);
-	// ros::Publisher waypoints_publisher = n.advertise<routing_machine::OutputCoords>("routing_machine/waypoints_coords", 10);
-	ROS_INFO("Routing Machine ready !");
+    // ros::Publisher waypoints_publisher = n.advertise<routing_machine::OutputCoords>("routing_machine/waypoints_coords", 10);
+    ROS_INFO("Routing Machine ready !");
     if (!server_type.empty()) ROS_INFO("Server type:  %s",server_type.c_str());
 
-    std::vector< std::string > keys;
-    n.getParamNames(keys);
-    // for (auto x : keys)
-        // std::cout << x << "\n";
+    //ros::ServiceServer service1 = n.advertiseService("routing_machine/get_wpts", getRouting);
+    if (server_type == "server") {
+	    ros::ServiceServer service1 = n.advertiseService("routing_machine/get_wpts", getRouting);
 
-    // Get parameters and fill config structures
-    osrm::EngineConfig config;
+        // Start service loop
+        ROS_INFO("Routing machine service is ready");
+        ros::AsyncSpinner spinner(0);
+        spinner.start();
+        ros::waitForShutdown();
+    }
+    else if (server_type == "local") {
+        // Get parameters and fill config structures
+        osrm::EngineConfig config;
 
-    std::string base_path;
-    n.param("base_path", base_path, std::string());
-    config.storage_config = osrm::StorageConfig(base_path);
+        std::string base_path;
+        n.param("base_path", base_path, std::string());
+        config.storage_config = osrm::StorageConfig(base_path);
 
-    std::string algorithm;
-    n.param<std::string>("algorithm", algorithm, "CH");
-    std::transform(algorithm.begin(), algorithm.end(), algorithm.begin(), ::tolower);
-    config.algorithm =
-            algorithm == "mld" ? osrm::engine::EngineConfig::Algorithm::MLD :
-            algorithm == "corech" ? osrm::engine::EngineConfig::Algorithm::CoreCH :
-            osrm::engine::EngineConfig::Algorithm::CH;
+        std::string algorithm;
+        n.param<std::string>("algorithm", algorithm, "CH");
+        std::transform(algorithm.begin(), algorithm.end(), algorithm.begin(), ::tolower);
+        config.algorithm =
+                algorithm == "mld" ? osrm::engine::EngineConfig::Algorithm::MLD :
+                algorithm == "corech" ? osrm::engine::EngineConfig::Algorithm::CoreCH :
+                osrm::engine::EngineConfig::Algorithm::CH;
 
-    n.param("use_shared_memory", config.use_shared_memory, base_path.empty());
+        n.param("use_shared_memory", config.use_shared_memory, base_path.empty());
 
-    // Create OSRM engine and ROS<->OSRM proxy
-    ROS_INFO("Starting ROSRM with %s using %s",
-             config.use_shared_memory ? "shared memory" : base_path.c_str(),
-             algorithm.c_str());
+        // Create OSRM engine and ROS<->OSRM proxy
+        ROS_INFO("Starting ROSRM with %s using %s",
+                 config.use_shared_memory ? "shared memory" : base_path.c_str(),
+                 algorithm.c_str());
+
+        try
+        {
+            osrm::OSRM osrm(config);
+            OSRMProxy proxy(osrm);
+
+            // Advertise OSRM service
+            ros::ServiceServer service2 = n.advertiseService("routing_machine/get_wpts_local", &OSRMProxy::route, &proxy);
+            ros::ServiceServer service3 = n.advertiseService("routing_machine/match_local", &OSRMProxy::match, &proxy);
+
+            // Start service loop
+            ROS_INFO("Routing machine service is ready");
+            ros::AsyncSpinner spinner(0);
+            spinner.start();
+            ros::waitForShutdown();
+        }
+        catch(const std::exception& exc)
+        {
+            ROS_ERROR(exc.what());
+            return 1;
+        }
+
+    }
+    else ROS_ERROR("Unsupported server type used! Pick server or local option!");
 
 	ros::spin();
 
@@ -432,7 +510,7 @@ int main(int argc, char **argv)
 }
 
 // ===> getRouting : principal function
-bool getRouting(routing_machine::ParseWpts::Request  &req, routing_machine::ParseWpts::Response &res)
+bool getRouting(routing_machine::ParseWptsService::Request  &req, routing_machine::ParseWptsService::Response &res)
 {
 	// Only if the client ask for waypoints
 	if(req.get_wpts == true)
@@ -455,8 +533,6 @@ bool getRouting(routing_machine::ParseWpts::Request  &req, routing_machine::Pars
 		string apiReturnJSON;
 		string coordinatesJSON;
 
-        string server_type;
-
 		// First test : we check if the interface has been launched. If so, it should have set the parameters
 		// Second test : we check if the user has provided a route by checking goTo's value.
 		if (ros::param::get("/routing_machine/destination/goTo", goTo) && goTo == true)
@@ -469,89 +545,81 @@ bool getRouting(routing_machine::ParseWpts::Request  &req, routing_machine::Pars
 
 			ROS_INFO("Start lat : %f lon : %f - End : lat : %f lon : %f", startLatitude, startLongitude, endLatitude, endLongitude);
 
-            ros::param::get("/routing_machine/server", server_type);
-
 			// Start message
 			ROS_INFO("Routing Machine : WIP !");
 
-			if (server_type == "server") {
-                // First, call the API
-                // apiReturn = apiCall("valhalla.mapzen.com",formateParameters(startLatitude,startLongitude,endLatitude,endLongitude));
-                apiReturn = apiCall("router.project-osrm.org",formateParametersOSRM(startLatitude,startLongitude,endLatitude,endLongitude));
+            // First, call the API
+            // apiReturn = apiCall("valhalla.mapzen.com",formateParameters(startLatitude,startLongitude,endLatitude,endLongitude));
+            apiReturn = apiCall("router.project-osrm.org",formateParametersOSRM(startLatitude,startLongitude,endLatitude,endLongitude));
 
-                // Test the return. If we have an error, it means that the API is disconnected or the car isn't connected
-                // to the internet, so no need to go further.
-                if (apiReturn == "error")
+            // Test the return. If we have an error, it means that the API is disconnected or the car isn't connected
+            // to the internet, so no need to go further.
+            if (apiReturn == "error")
+            {
+                ROS_FATAL("Routing Machine : Impossible to connect to routing API. Routing failed.");
+                res.success = false;
+            }
+            else
+            {
+                // Data has arrived! Next, extract the shape.
+                ROS_INFO("Routing Machine : Got information from API, processing.");
+                // shape = isolateShape(apiReturn);
+                status = getStatus(apiReturn);
+
+                ROS_INFO("Check API return : \n%s",apiReturn.c_str());
+                ROS_INFO("Check API status : %s",status.c_str());
+
+                // Here, two possibilities.
+                // - The export is a JSON object, containing the shape, so we use string function manipulation
+                //   to extract it, and after we'll be able to decode it with the polyline algorith.
+                // - The export is not parsable. That's mean that instead of a nice JSON object, we got an error
+                //   coming from the API. It could be pretty much anything, so we display it for debugging purpose.
+                //   For example, it could be a coordinate that doesn't exists.
+
+                if(status != "Ok")
                 {
-                    ROS_FATAL("Routing Machine : Impossible to connect to routing API. Routing failed.");
+                    ROS_FATAL("Routing Machine : Unable to parse data");
+                    // ROS_FATAL("Check API return : \n%s",apiReturn.c_str());
+                    ROS_FATAL("Check API status : %s",status.c_str());
+
                     res.success = false;
                 }
                 else
                 {
-                    // Data has arrived! Next, extract the shape.
-                    ROS_INFO("Routing Machine : Got information from API, processing.");
-                    // shape = isolateShape(apiReturn);
-                    status = getStatus(apiReturn);
+                    ROS_INFO("Routing Machine : Parsed correctly");
+                    // Now we can decode the shape, using the google algorithm.
+                    // More info here : https://developers.google.com/maps/documentation/utilities/polylinealgorithm
+                    // We give the function two pointers, so we get our vectors directly written.
+                    // decodePolyline(apiReturn, &latitude, &longitude);
 
-                    ROS_INFO("Check API return : \n%s",apiReturn.c_str());
-                    ROS_INFO("Check API status : %s",status.c_str());
+                    // decodedJSON = decodeJSON(apiReturn.substr(apiReturn.find("{\"code\""), apiReturn.npos));
+                    apiReturnJSON = apiReturn.substr(apiReturn.find("{\"code\""), apiReturn.npos);
 
-                    // Here, two possibilities.
-                    // - The export is a JSON object, containing the shape, so we use string function manipulation
-                    //   to extract it, and after we'll be able to decode it with the polyline algorith.
-                    // - The export is not parsable. That's mean that instead of a nice JSON object, we got an error
-                    //   coming from the API. It could be pretty much anything, so we display it for debugging purpose.
-                    //   For example, it could be a coordinate that doesn't exists.
+                    // ROS_INFO("apiReturnJSON : \n%s",apiReturnJSON.c_str());
+                    // TODO: add good JSON parser
+                    coordinatesJSON = apiReturnJSON.substr(apiReturnJSON.find("{\"coordinates\"")+16, apiReturnJSON.find(",\"type\"")-apiReturnJSON.find("{\"coordinates\"")-17);
+                    ROS_INFO("coordinatesJSON : \n%s",coordinatesJSON.c_str());
 
-                    if(status != "Ok")
-                    {
-                        ROS_FATAL("Routing Machine : Unable to parse data");
-                        // ROS_FATAL("Check API return : \n%s",apiReturn.c_str());
-                        ROS_FATAL("Check API status : %s",status.c_str());
+                    // TODO: add support for local server using https://github.com/oxidase/rosrm and https://github.com/Project-OSRM/osrm-backend/blob/master/example/example.cpp
 
-                        res.success = false;
-                    }
-                    else
-                    {
-                        ROS_INFO("Routing Machine : Parsed correctly");
-                        // Now we can decode the shape, using the google algorithm.
-                        // More info here : https://developers.google.com/maps/documentation/utilities/polylinealgorithm
-                        // We give the function two pointers, so we get our vectors directly written.
-                        // decodePolyline(apiReturn, &latitude, &longitude);
+                    calculatedWaypoints = getVecFromStr(coordinatesJSON);
 
-                        // decodedJSON = decodeJSON(apiReturn.substr(apiReturn.find("{\"code\""), apiReturn.npos));
-                        apiReturnJSON = apiReturn.substr(apiReturn.find("{\"code\""), apiReturn.npos);
+                    calculatedWaypoints.latitude.push_back(endLatitude);
+                    calculatedWaypoints.latitude.insert(calculatedWaypoints.latitude.begin(), startLatitude);
+                    calculatedWaypoints.longitude.push_back(endLongitude);
+                    calculatedWaypoints.longitude.insert(calculatedWaypoints.longitude.begin(), startLongitude);
 
-                        // ROS_INFO("apiReturnJSON : \n%s",apiReturnJSON.c_str());
-                        // TODO: add good JSON parser
-                        coordinatesJSON = apiReturnJSON.substr(apiReturnJSON.find("{\"coordinates\"")+16, apiReturnJSON.find(",\"type\"")-apiReturnJSON.find("{\"coordinates\"")-17);
-                        ROS_INFO("coordinatesJSON : \n%s",coordinatesJSON.c_str());
+                    // And now we make a nice output.
+                    res.latitude = calculatedWaypoints.latitude;
+                    res.longitude = calculatedWaypoints.longitude;
+                    res.num_wpts = calculatedWaypoints.latitude.size();
+                    res.success = true;
 
-                        // TODO: add support for local server using https://github.com/oxidase/rosrm and https://github.com/Project-OSRM/osrm-backend/blob/master/example/example.cpp
-
-                        calculatedWaypoints = getVecFromStr(coordinatesJSON);
-
-                        calculatedWaypoints.latitude.push_back(endLatitude);
-                        calculatedWaypoints.latitude.insert(calculatedWaypoints.latitude.begin(), startLatitude);
-                        calculatedWaypoints.longitude.push_back(endLongitude);
-                        calculatedWaypoints.longitude.insert(calculatedWaypoints.longitude.begin(), startLongitude);
-
-                        // And now we make a nice output.
-                        res.latitude = calculatedWaypoints.latitude;
-                        res.longitude = calculatedWaypoints.longitude;
-                        res.num_wpts = calculatedWaypoints.latitude.size();
-                        res.success = true;
-
-                        // routing_machine::OutputCoords waypointsMsg;
-                        // waypointsMsg.latitude = calculatedWaypoints.latitude;
-                        // waypointsMsg.longitude = calculatedWaypoints.longitude;
-                        // waypoints_publisher.publish(waypointsMsg);
-                    }
+                    // routing_machine::OutputCoords waypointsMsg;
+                    // waypointsMsg.latitude = calculatedWaypoints.latitude;
+                    // waypointsMsg.longitude = calculatedWaypoints.longitude;
+                    // waypoints_publisher.publish(waypointsMsg);
                 }
-                if (server_type == "local") {
-
-                }
-                else ROS_ERROR("Unsupported server type used! Pick server or local option!");
 			}
 
 			ROS_INFO("Routing Machine : Finish! %ld waypoints.", calculatedWaypoints.latitude.size());

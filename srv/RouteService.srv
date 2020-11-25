@@ -1,3 +1,4 @@
+bool get_wpts
 geometry_msgs/Pose[] waypoints
 float64[] radiuses
 Bearing[] bearings
@@ -10,4 +11,8 @@ uint8 overview
 uint8 number_of_alternatives
 ---
 string code
+bool success
+float64[] latitude
+float64[] longitude
+int16 num_wpts
 Route[] routes
