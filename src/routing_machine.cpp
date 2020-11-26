@@ -310,6 +310,7 @@ struct OSRMProxy
                 {
                     auto longitude = osrm::util::FloatLongitude{waypoint.position.x};
                     auto latitude = osrm::util::FloatLatitude{waypoint.position.y};
+                    // std::cout<<longitude<<std::endl;
                     parameters.coordinates.emplace_back(longitude, latitude);
                 }
 

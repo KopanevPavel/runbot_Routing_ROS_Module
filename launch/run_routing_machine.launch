@@ -2,6 +2,6 @@
 <launch>
     <node pkg="routing_machine" type="routing_machine" name="routing_machine" output="screen" cwd="node">
         <param name="algorithm" value="MLD" type="string" />
-        <param name="server_type" value="server" type="string" />
+        <param name="server_type" value="local" type="string" />
     </node>
 </launch>
