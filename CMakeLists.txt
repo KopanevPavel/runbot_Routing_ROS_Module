@@ -67,6 +67,7 @@ add_message_files(
     Route.msg
     RouteLeg.msg
     RouteStep.msg
+    UTM.msg
 )
 
 ## Generate services in the 'srv' folder
