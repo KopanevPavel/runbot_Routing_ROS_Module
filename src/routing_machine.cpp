@@ -1,7 +1,7 @@
 #include "ros/ros.h"
-#include "routing_machine/ParseWptsService.h"
-#include <routing_machine/RouteService.h>
-#include <routing_machine/MatchService.h>
+#include "runbot_routing_machine/ParseWptsService.h"
+#include <runbot_routing_machine/RouteService.h>
+#include <runbot_routing_machine/MatchService.h>
 #include <iostream>
 #include <ctype.h>
 #include <cstring>
@@ -43,7 +43,7 @@ waypointsCoords getVecFromStr(std::string input);
 int decodePolyline(string encoded, std::vector<double> *latitude, std::vector<double> *longitude);
 string formateParameters(double slat, double slng, double elat, double elng);
 string formateParametersOSRM(double slat, double slng, double elat, double elng);
-bool getRouting(routing_machine::ParseWptsService::Request  &req, routing_machine::ParseWptsService::Response &res);
+bool getRouting(runbot_routing_machine::ParseWptsService::Request  &req, runbot_routing_machine::ParseWptsService::Response &res);
 
 namespace
 {
@@ -70,7 +70,7 @@ namespace
 
     auto convert_lane(osrm::json::Object &lane)
     {
-        routing_machine::Lane result;
+        runbot_routing_machine::Lane result;
 
         result.valid = lane.values["valid"].which() == 4;
         auto &indications = lane.values["indications"].get<osrm::util::json::Array>().values;
@@ -84,7 +84,7 @@ namespace
 
     auto convert_intersection(osrm::json::Object &intersection)
     {
-        routing_machine::Intersection result;
+        runbot_routing_machine::Intersection result;
 
         result.in = intersection.values.count("in") ? intersection.values["in"].get<osrm::util::json::Number>().value : 0;
         result.out = intersection.values.count("out") ? intersection.values["out"].get<osrm::util::json::Number>().value : 0;
@@ -116,7 +116,7 @@ namespace
 
     auto convert_maneuver(osrm::json::Object &maneuver)
     {
-        routing_machine::Maneuver result;
+        runbot_routing_machine::Maneuver result;
         result.type = maneuver.values["type"].get<osrm::util::json::String>().value;
         result.modifier = maneuver.values["modifier"].get<osrm::util::json::String>().value;
         result.exit = maneuver.values.count("exit") ? maneuver.values["exit"].get<osrm::util::json::Number>().value : 0;
@@ -129,7 +129,7 @@ namespace
 
     auto convert_step(osrm::json::Object &step)
     {
-        routing_machine::RouteStep result;
+        runbot_routing_machine::RouteStep result;
         result.name = step.values["name"].get<osrm::util::json::String>().value;
         result.mode = step.values["mode"].get<osrm::util::json::String>().value;
         result.distance = step.values["distance"].get<osrm::util::json::Number>().value;
@@ -151,7 +151,7 @@ namespace
 
     auto convert_annotation(osrm::json::Object &annotation)
     {
-        routing_machine::Annotation result;
+        runbot_routing_machine::Annotation result;
 
         auto copy_values = [&annotation](const std::string &key, auto &vec) {
             auto &values = annotation.values;
@@ -177,7 +177,7 @@ namespace
 
     auto convert_leg(osrm::json::Object &leg)
     {
-        routing_machine::RouteLeg result;
+        runbot_routing_machine::RouteLeg result;
         result.summary = leg.values["summary"].get<osrm::util::json::String>().value;
         result.distance = leg.values["distance"].get<osrm::util::json::Number>().value;
         result.duration = leg.values["duration"].get<osrm::util::json::Number>().value;
@@ -199,7 +199,7 @@ namespace
 
     auto convert_route(osrm::json::Object &route)
     {
-        routing_machine::Route result;
+        runbot_routing_machine::Route result;
         result.weight_name = route.values["weight_name"].get<osrm::util::json::String>().value;
         result.distance = route.values["distance"].get<osrm::util::json::Number>().value;
         result.duration = route.values["duration"].get<osrm::util::json::Number>().value;
@@ -219,7 +219,7 @@ namespace
 
     auto convert_matching(osrm::json::Object &matching)
     {
-        routing_machine::Matching result;
+        runbot_routing_machine::Matching result;
         result.confidence = matching.values["confidence"].get<osrm::util::json::Number>().value;
 
         auto &geometry = matching.values["geometry"].get<osrm::util::json::Object>().values;
@@ -260,7 +260,7 @@ struct OSRMProxy
 {
     OSRMProxy(const osrm::OSRM& osrm) : osrm(osrm) {}
 
-    bool route(routing_machine::RouteService::Request  &req, routing_machine::RouteService::Response &res)
+    bool route(runbot_routing_machine::RouteService::Request  &req, runbot_routing_machine::RouteService::Response &res)
     {
         // Only if the client ask for waypoints
         if(req.get_wpts == true)
@@ -285,13 +285,13 @@ struct OSRMProxy
 
             // First test : we check if the interface has been launched. If so, it should have set the parameters
             // Second test : we check if the user has provided a route by checking goTo's value.
-            if (ros::param::get("/routing_machine/destination/goTo", goTo) && goTo == true)
+            if (ros::param::get("/runbot_routing_machine/destination/goTo", goTo) && goTo == true)
             {
                 // If the parameters goTo has been set, the 4 others should have been too. We get their values.
-                ros::param::get("/routing_machine/start/latitude", startLatitude);
-                ros::param::get("/routing_machine/start/longitude", startLongitude);
-                ros::param::get("/routing_machine/destination/latitude", endLatitude);
-                ros::param::get("/routing_machine/destination/longitude", endLongitude);
+                ros::param::get("/runbot_routing_machine/start/latitude", startLatitude);
+                ros::param::get("/runbot_routing_machine/start/longitude", startLongitude);
+                ros::param::get("/runbot_routing_machine/destination/latitude", endLatitude);
+                ros::param::get("/runbot_routing_machine/destination/longitude", endLongitude);
 
                 ROS_INFO("Start lat : %f lon : %f - End : lat : %f lon : %f", startLatitude, startLongitude, endLatitude, endLongitude);
 
@@ -361,7 +361,7 @@ struct OSRMProxy
         }
     }
 
-    bool match(routing_machine::MatchService::Request  &req, routing_machine::MatchService::Response &res)
+    bool match(runbot_routing_machine::MatchService::Request  &req, runbot_routing_machine::MatchService::Response &res)
     {
         // Set map matching parameters
         osrm::MatchParameters parameters;
@@ -444,13 +444,12 @@ int main(int argc, char **argv)
     if (n.getParam("/routing_machine/server_type", server_type)) ;
     else server_type = "server";
 
-    // ros::Publisher waypoints_publisher = n.advertise<routing_machine::OutputCoords>("routing_machine/waypoints_coords", 10);
     ROS_INFO("Routing Machine ready !");
     if (!server_type.empty()) ROS_INFO("Server type:  %s",server_type.c_str());
 
-    //ros::ServiceServer service1 = n.advertiseService("routing_machine/get_wpts", getRouting);
+    //ros::ServiceServer service1 = n.advertiseService("runbot_routing_machine/get_wpts", getRouting);
     if (server_type == "server") {
-	    ros::ServiceServer service1 = n.advertiseService("routing_machine/get_wpts", getRouting);
+	    ros::ServiceServer service1 = n.advertiseService("runbot_routing_machine/get_wpts", getRouting);
 
         // Start service loop
         ROS_INFO("Routing machine service is ready");
@@ -487,8 +486,8 @@ int main(int argc, char **argv)
             OSRMProxy proxy(osrm);
 
             // Advertise OSRM service
-            ros::ServiceServer service2 = n.advertiseService("routing_machine/get_wpts_local", &OSRMProxy::route, &proxy);
-            ros::ServiceServer service3 = n.advertiseService("routing_machine/match_local", &OSRMProxy::match, &proxy);
+            ros::ServiceServer service2 = n.advertiseService("runbot_routing_machine/get_wpts_local", &OSRMProxy::route, &proxy);
+            ros::ServiceServer service3 = n.advertiseService("runbot_routing_machine/match_local", &OSRMProxy::match, &proxy);
 
             // Start service loop
             ROS_INFO("Routing machine service is ready");
@@ -511,7 +510,7 @@ int main(int argc, char **argv)
 }
 
 // ===> getRouting : principal function
-bool getRouting(routing_machine::ParseWptsService::Request  &req, routing_machine::ParseWptsService::Response &res)
+bool getRouting(runbot_routing_machine::ParseWptsService::Request  &req, runbot_routing_machine::ParseWptsService::Response &res)
 {
 	// Only if the client ask for waypoints
 	if(req.get_wpts == true)
@@ -536,13 +535,13 @@ bool getRouting(routing_machine::ParseWptsService::Request  &req, routing_machin
 
 		// First test : we check if the interface has been launched. If so, it should have set the parameters
 		// Second test : we check if the user has provided a route by checking goTo's value.
-		if (ros::param::get("/routing_machine/destination/goTo", goTo) && goTo == true)
+		if (ros::param::get("/runbot_routing_machine/destination/goTo", goTo) && goTo == true)
 		{
 			// If the parameters goTo has been set, the 4 others should have been too. We get their values.
-			ros::param::get("/routing_machine/start/latitude", startLatitude);
-			ros::param::get("/routing_machine/start/longitude", startLongitude);
-			ros::param::get("/routing_machine/destination/latitude", endLatitude);
-			ros::param::get("/routing_machine/destination/longitude", endLongitude);
+			ros::param::get("/runbot_routing_machine/start/latitude", startLatitude);
+			ros::param::get("/runbot_routing_machine/start/longitude", startLongitude);
+			ros::param::get("/runbot_routing_machine/destination/latitude", endLatitude);
+			ros::param::get("/runbot_routing_machine/destination/longitude", endLongitude);
 
 			ROS_INFO("Start lat : %f lon : %f - End : lat : %f lon : %f", startLatitude, startLongitude, endLatitude, endLongitude);
 
@@ -616,7 +615,7 @@ bool getRouting(routing_machine::ParseWptsService::Request  &req, routing_machin
                     res.num_wpts = calculatedWaypoints.latitude.size();
                     res.success = true;
 
-                    // routing_machine::OutputCoords waypointsMsg;
+                    // runbot_routing_machine::OutputCoords waypointsMsg;
                     // waypointsMsg.latitude = calculatedWaypoints.latitude;
                     // waypointsMsg.longitude = calculatedWaypoints.longitude;
                     // waypoints_publisher.publish(waypointsMsg);

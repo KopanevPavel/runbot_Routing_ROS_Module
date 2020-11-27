@@ -3,7 +3,7 @@
 import rospy
 import numpy as np
 from visualization_msgs.msg import Marker, MarkerArray
-from routing_machine.msg import OutputCoords
+from runbot_routing_machine.msg import OutputCoords
 from geometry_msgs.msg import Point
 
 class GlobalPathPlannerNode:
@@ -11,13 +11,17 @@ class GlobalPathPlannerNode:
         rospy.init_node("routing_machine_route_handler", anonymous=True)
 
         # ROS publishers
-        self.path_publisher_as_line_strip = rospy.Publisher('global_path', MarkerArray, queue_size=10)
+        self.path_publisher_as_line_strip = rospy.Publisher('runbot_routing_machine/global_path', MarkerArray, queue_size=10)
 
         # ROS subscribers
-        # rospy.Subscriber("/routing_machine/global_waypoints" , String, self.callback_global_path, queue_size=10)
+        rospy.Subscriber("/runbot_routing_machine/global_waypoints", OutputCoords, self.callback_global_path, queue_size=10)
 
-        # ROS timers
-
+    def callback_global_path(self, coords):
+        path = []
+        for coord in coords.utm_coordinates:
+            path += [[coord.x, coord.y]]
+        if path: print (path)
+        self.publish_path_as_line_strip(path)
 
     def publish_path_as_line_strip(self, path):
         markers = []
@@ -29,12 +33,12 @@ class GlobalPathPlannerNode:
             marker.type = marker.LINE_STRIP
             marker.action = marker.ADD
             marker.ns = "path"
-            marker.scale.x = 0.02
-            marker.scale.y = 0.02
-            marker.scale.z = 0.02
+            marker.scale.x = 6
+            marker.scale.y = 6
+            marker.scale.z = 6
             marker.color.a = 1
-            marker.color.r = 153/255
-            marker.color.g = 102/255
+            marker.color.r = 100/255
+            marker.color.g = 100/255
             marker.color.b = 1
             marker.id = i
             marker.header.frame_id = "map"

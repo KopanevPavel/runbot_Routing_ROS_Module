@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-project(routing_machine)
+project(runbot_routing_machine)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -227,10 +227,10 @@ add_executable(routing_machine src/routing_machine.cpp)
 # target_link_libraries(routing_machine ${catkin_LIBRARIES})
 target_link_libraries(routing_machine catkin libosrm)
 set_property(TARGET routing_machine APPEND PROPERTY INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include)
-add_dependencies(routing_machine routing_machine_gencpp)
+add_dependencies(routing_machine runbot_routing_machine_gencpp)
 
 add_executable(routing_machine_client src/routing_machine_client.cpp)
 target_link_libraries(routing_machine_client ${catkin_LIBRARIES})
-add_dependencies(routing_machine_client routing_machine_gencpp)
+add_dependencies(routing_machine_client runbot_routing_machine_gencpp)
 
 

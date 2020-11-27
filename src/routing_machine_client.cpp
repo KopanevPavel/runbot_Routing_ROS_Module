@@ -1,5 +1,5 @@
 #include "ros/ros.h"
-#include "routing_machine/ParseWpts.h"
+#include "runbot_routing_machine/ParseWptsService.h"
 #include <iostream>
 #include <ctype.h>
 #include <cstring>
@@ -28,8 +28,8 @@ int main(int argc, char **argv)
   }
 
   ros::NodeHandle n;
-  ros::ServiceClient client = n.serviceClient<routing_machine::ParseWpts>("routing_machine/get_wpts");
-  routing_machine::ParseWpts srv;
+  ros::ServiceClient client = n.serviceClient<runbot_routing_machine::ParseWptsService>("runbot_routing_machine/get_wpts");
+  runbot_routing_machine::ParseWptsService srv;
   srv.request.get_wpts = atoll(argv[1]);
   // std::cout << atoll(argv[1]) << std::endl;
   if (client.call(srv))

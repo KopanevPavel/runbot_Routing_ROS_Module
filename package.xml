@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>routing_machine</name>
+  <name>runbot_routing_machine</name>
   <version>0.1.0</version>
   <description>Make API calls to find the routing from start to finish, then send the geocoords of the points making the polyline. Based on Mapzen and OSM. Started in May 2016.</description>
 
